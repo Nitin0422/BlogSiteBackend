@@ -43,7 +43,7 @@ class User(AbstractBaseUser):
         unique=True,
     )
     name = models.CharField(max_length=200)
-    country = models.CharField()
+    country = models.CharField(max_length=100)
     is_verified = models.BooleanField(default=False)
     otp = models.CharField(max_length=8, null=True, blank=True)
     is_active = models.BooleanField(default=True)
