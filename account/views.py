@@ -3,7 +3,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from .serializers import *
-from.renderers import UserRenderer
+from .renderers import UserRenderer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+# Generate token manually
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+
+    refresh["user"] = UserSerializer(user).data
+
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
 
 '''
     Endpoint for registration of users
@@ -13,14 +26,19 @@ from.renderers import UserRenderer
     else
     Returns 400 as bad request 
 '''
+
+
 class UserRegistrationView(APIView):
     renderer_classes = [UserRenderer]
+
     def post(self, request, format=None):
-        serializer = UserRegisterSerializer(data = request.data)
+        serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response({'message': 'Registration Successful'}, status=status.HTTP_201_CREATED)
-    
+        token = get_tokens_for_user(user)
+        return Response({'message': 'Registration Successful', 'token': token}, status=status.HTTP_201_CREATED)
+
+
 '''
     Endpoint for login 
     Takes email and password as valid data
@@ -30,14 +48,18 @@ class UserRegistrationView(APIView):
     else
     Returns 404 if user with invalid credentials is provided
 '''
+
+
 class UserLoginView(APIView):
     renderer_classes = [UserRenderer]
+
     def post(self, request, format=None):
-        serializer = UserLoginSerializer(data = request.data)
+        serializer = UserLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.data.get('email')
         password = serializer.data.get('password')
-        user = authenticate(email=email, password= password)
+        user = authenticate(email=email, password=password)
         if user is not None:
-            return Response({'message':'Login Successful'}, status=status.HTTP_200_OK)
+            token = get_tokens_for_user(user)
+            return Response({'message': 'Login Successful', 'token': token}, status=status.HTTP_200_OK)
         return Response({'message': 'User credentials does not match'}, status=status.HTTP_404_NOT_FOUND)

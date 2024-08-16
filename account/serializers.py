@@ -1,6 +1,13 @@
 from rest_framework import serializers
 from account.models import User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
+# User Serializer for extracting all user data for tokem claim 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ('password',)
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(
