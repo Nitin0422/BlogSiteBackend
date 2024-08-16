@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from .serializers import *
+from.renderers import UserRenderer
 
 '''
     Endpoint for registration of users
@@ -13,6 +14,7 @@ from .serializers import *
     Returns 400 as bad request 
 '''
 class UserRegistrationView(APIView):
+    renderer_classes = [UserRenderer]
     def post(self, request, format=None):
         serializer = UserRegisterSerializer(data = request.data)
         serializer.is_valid(raise_exception=True)
@@ -29,6 +31,7 @@ class UserRegistrationView(APIView):
     Returns 404 if user with invalid credentials is provided
 '''
 class UserLoginView(APIView):
+    renderer_classes = [UserRenderer]
     def post(self, request, format=None):
         serializer = UserLoginSerializer(data = request.data)
         serializer.is_valid(raise_exception=True)
