@@ -3,6 +3,7 @@ from account.models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.validators import validate_email
 
 # User Serializer for extracting all user data for tokem claim
 
@@ -28,9 +29,13 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         password = attrs.get('password')
         password2 = attrs.get('password2')
+        email = attrs.get('email')
         if password != password2:
             raise serializers.ValidationError(
                 'Password and Confirm Password must match')
+        
+        if validate_email(email):
+            raise serializers.ValidationError('Please provide a valid email')
 
         return attrs
 
