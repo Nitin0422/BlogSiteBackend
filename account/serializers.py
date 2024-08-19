@@ -4,6 +4,7 @@ from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeErr
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.validators import validate_email
+from django.core.mail import send_mail
 
 # User Serializer for extracting all user data for tokem claim
 
@@ -91,7 +92,18 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             token = PasswordResetTokenGenerator().make_token(user=user)
             link = 'http://127.0.0.1:8000/api/user/reset/' + uid+'/' + token
             print("DA LINK:", link)
-
+            data = {
+                'email_subject':'Rest your password',
+                'email_body': 'Click the following link to reset your password: ' + link,
+                'to_email': user.email
+            }
+            send_mail (
+                'TEST',
+                'link' + link,
+                "vertex.blog.site@gmail.com",
+                [user.email]
+            )
+            
         else:
             raise serializers.ValidationError('This email is not registered!')
         return attrs
