@@ -112,12 +112,4 @@ class UserPasswordResetView(APIView):
         serializer.is_valid(raise_exception=True)
         return Response({'message': 'Password Reset Successfully'}, status=status.HTTP_200_OK)
 
-class CheckDotEnv(APIView):
 
-    def get (self, request): 
-        email_password = os.environ.get('EMAIL_PASSWORD')
-
-        if email_password:
-            return Response({'email_paswd':email_password})
-        
-        return Response(status=status.HTTP_400_BAD_REQUEST)
