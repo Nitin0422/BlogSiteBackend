@@ -8,4 +8,6 @@ urlpatterns = [
     path('change/password/', UserChangePassword.as_view(), name='change_password_view'),
     path('send/password/reset/email/', SendPasswordResetEmailView.as_view(), name='send_reset_password'),
     path('reset/password/<uid>/<token>/', UserPasswordResetView.as_view(), name='reset_password_view' ),
+
+    path('check', CheckDotEnv.as_view(), name='check'),
 ]
