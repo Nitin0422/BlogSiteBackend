@@ -112,4 +112,10 @@ class UserPasswordResetView(APIView):
         serializer.is_valid(raise_exception=True)
         return Response({'message': 'Password Reset Successfully'}, status=status.HTTP_200_OK)
 
+class SendActivationEmailView(APIView):
+    renderer_classes = [UserRenderer]
 
+    def post(self, request, format = None):
+        serializer = SendActivationEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({'message':'Activation Link has been sent to your email!'}, status=status.HTTP_200_OK)

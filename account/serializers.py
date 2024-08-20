@@ -2,9 +2,10 @@ from rest_framework import serializers
 from account.models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.core.validators import validate_email
 from django.core.mail import send_mail
+import os 
 
 # User Serializer for extracting all user data for tokem claim
 
@@ -92,11 +93,6 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             token = PasswordResetTokenGenerator().make_token(user=user)
             link = 'http://127.0.0.1:8000/api/user/reset/' + uid+'/' + token
             print("DA LINK:", link)
-            data = {
-                'email_subject':'Rest your password',
-                'email_body': 'Click the following link to reset your password: ' + link,
-                'to_email': user.email
-            }
             send_mail (
                 'TEST',
                 'link' + link,
@@ -139,5 +135,42 @@ class UserPasswordResetSerializer(serializers.Serializer):
             return attrs
         except DjangoUnicodeDecodeError:
             raise serializers.ValidationError('Invalid token! Please re-generate token!')
+
+class SendActivationEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        max_length=255,
+    )
+
+    class Meta:
+        fields = ['email']
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+
+        if User.objects.filter(email = email).exists():
+            user = User.objects.get(email = email)
+
+            uid = urlsafe_base64_encode(force_bytes(user.id))
+            token = default_token_generator.make_token(user)
+
+            link = "http://127.0.0.1:8000/" + uid + '/' + token
+
+            send_mail(
+                subject='Vertex | Email Verification',
+                message='You have registered into the Vertex server. Click the link to verify your email: ' + link,
+                from_email= os.environ.get('EMAIL_FROM'),
+                recipient_list=[user.email],
+                fail_silently=False
+            )
+        else:
+            raise serializers.ValidationError('This email is not registerd in the Vertex server!')
+        
+        return attrs
+
+
+        
+
+        
+
 
 
