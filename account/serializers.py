@@ -2,10 +2,10 @@ from rest_framework import serializers
 from account.models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.contrib.auth.tokens import  default_token_generator
-from django.core.validators import validate_email
+from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
-import os 
+import requests
+import os
 
 # User Serializer for extracting all user data for tokem claim
 
@@ -32,18 +32,30 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         password = attrs.get('password')
         password2 = attrs.get('password2')
         email = attrs.get('email')
+        api_key = os.environ.get('EMAIL_VALIDATION_API_KEY')
+
         if password != password2:
             raise serializers.ValidationError(
                 'Password and Confirm Password must match')
-        
-        if validate_email(email):
-            raise serializers.ValidationError('Please provide a valid email')
+        if not self.validate_email_availability(email, api_key):
+            raise serializers.ValidationError('Invalid email! Please provide a valid email address!')
 
         return attrs
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
 
+    def validate_email_availability(self, email, api_key):
+        request_link = "https://emailvalidation.abstractapi.com/v1/?" + \
+            "api_key=" + api_key + "&email=" + email
+        response = requests.get(request_link)
+        # Parse the JSON response
+        response_json = response.json()
+    
+        # Extract the value of 'deliverability'
+        deliverability = response_json.get('deliverability')
+
+        return True if deliverability == "DELIVERABLE"  else  False
 
 class UserLoginSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
@@ -93,13 +105,13 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             token = default_token_generator.make_token(user=user)
             link = 'http://127.0.0.1:8000/api/user/reset/' + uid+'/' + token
             print("DA LINK:", link)
-            send_mail (
+            send_mail(
                 'TEST',
                 'link' + link,
                 "vertex.blog.site@gmail.com",
                 [user.email]
             )
-            
+
         else:
             raise serializers.ValidationError('This email is not registered!')
         return attrs
@@ -128,13 +140,16 @@ class UserPasswordResetSerializer(serializers.Serializer):
             user_id = smart_str(urlsafe_base64_decode(uid))
             user = User.objects.get(id=user_id)
             if not default_token_generator.check_token(user=user, token=token):
-                raise serializers.ValidationError('Invalid token! Please re-generate token!')
+                raise serializers.ValidationError(
+                    'Invalid token! Please re-generate token!')
 
             user.set_password(password)
             user.save()
             return attrs
         except DjangoUnicodeDecodeError:
-            raise serializers.ValidationError('Invalid token! Please re-generate token!')
+            raise serializers.ValidationError(
+                'Invalid token! Please re-generate token!')
+
 
 class SendActivationEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(
@@ -147,8 +162,8 @@ class SendActivationEmailSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
 
-        if User.objects.filter(email = email).exists():
-            user = User.objects.get(email = email)
+        if User.objects.filter(email=email).exists():
+            user = User.objects.get(email=email)
 
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
@@ -158,19 +173,12 @@ class SendActivationEmailSerializer(serializers.Serializer):
             send_mail(
                 subject='Vertex | Email Verification',
                 message='You have registered into the Vertex server. Click the link to verify your email: ' + link,
-                from_email= os.environ.get('EMAIL_FROM'),
+                from_email=os.environ.get('EMAIL_FROM'),
                 recipient_list=[user.email],
                 fail_silently=False
             )
         else:
-            raise serializers.ValidationError('This email is not registerd in the Vertex server!')
-        
+            raise serializers.ValidationError(
+                'This email is not registerd in the Vertex server!')
+
         return attrs
-
-
-        
-
-        
-
-
-
