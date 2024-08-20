@@ -2,7 +2,7 @@ from rest_framework import serializers
 from account.models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
+from django.contrib.auth.tokens import  default_token_generator
 from django.core.validators import validate_email
 from django.core.mail import send_mail
 import os 
@@ -90,7 +90,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             user = User.objects.get(email=email)
             # Encoding the userid. force_bytes is used because the encoder function does not take integer
             uid = urlsafe_base64_encode(force_bytes(user.id))
-            token = PasswordResetTokenGenerator().make_token(user=user)
+            token = default_token_generator.make_token(user=user)
             link = 'http://127.0.0.1:8000/api/user/reset/' + uid+'/' + token
             print("DA LINK:", link)
             send_mail (
@@ -127,7 +127,7 @@ class UserPasswordResetSerializer(serializers.Serializer):
 
             user_id = smart_str(urlsafe_base64_decode(uid))
             user = User.objects.get(id=user_id)
-            if not PasswordResetTokenGenerator().check_token(user=user, token=token):
+            if not default_token_generator.check_token(user=user, token=token):
                 raise serializers.ValidationError('Invalid token! Please re-generate token!')
 
             user.set_password(password)
