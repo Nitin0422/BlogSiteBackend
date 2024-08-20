@@ -38,7 +38,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 'Password and Confirm Password must match')
         if not self.validate_email_availability(email, api_key):
-            raise serializers.ValidationError('Invalid email! Please provide a valid email address!')
+            raise serializers.ValidationError(
+                'Invalid email! Please provide a valid email address!')
 
         return attrs
 
@@ -51,11 +52,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         response = requests.get(request_link)
         # Parse the JSON response
         response_json = response.json()
-    
+
         # Extract the value of 'deliverability'
         deliverability = response_json.get('deliverability')
 
-        return True if deliverability == "DELIVERABLE"  else  False
+        return True if deliverability == "DELIVERABLE" else False
+
 
 class UserLoginSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
@@ -103,11 +105,11 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             # Encoding the userid. force_bytes is used because the encoder function does not take integer
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user=user)
-            link = 'http://127.0.0.1:8000/api/user/reset/' + uid+'/' + token
-            print("DA LINK:", link)
+            link = 'http://127.0.0.1:8000/api/user/reset/password' + uid+'/' + token
+
             send_mail(
-                'TEST',
-                'link' + link,
+                'Reset Password | VERTEX',
+                'Follow the given link to reset your password' + link,
                 "vertex.blog.site@gmail.com",
                 [user.email]
             )
@@ -168,7 +170,7 @@ class SendActivationEmailSerializer(serializers.Serializer):
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
 
-            link = "http://127.0.0.1:8000/" + uid + '/' + token
+            link = "http://127.0.0.1:8000/api/user/activate/account/" + uid + '/' + token + '/'
 
             send_mail(
                 subject='Vertex | Email Verification',
@@ -181,4 +183,23 @@ class SendActivationEmailSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 'This email is not registerd in the Vertex server!')
 
+        return attrs
+
+
+class ActivateAccountSerializer(serializers.Serializer):
+    def validate(self, attrs):
+        try:
+            uid = self.context.get('uid')
+            token = self.context.get('token')
+            user_id = smart_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(id=user_id)
+            if not default_token_generator.check_token(user=user, token=token):
+                raise serializers.ValidationError(
+                    'Invalid token! Please re-generate token!')
+
+            user.is_active = True
+            user.save()
+        except DjangoUnicodeDecodeError:
+            raise serializers.DjangoValidationError(
+                'The activation link is not valid or expired! Please try again ')
         return attrs

@@ -119,3 +119,11 @@ class SendActivationEmailView(APIView):
         serializer = SendActivationEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response({'message':'Activation Link has been sent to your email!'}, status=status.HTTP_200_OK)
+    
+class ActivateAccountView(APIView):
+    renderer_classes = [UserRenderer]
+
+    def post(self, request, uid, token):
+        serializer = ActivateAccountSerializer(data = request.data, context = {'uid':uid, 'token':token})
+        serializer.is_valid(raise_exception=True)
+        return Response({"message":"Your account has been activated successfully"}, status=status.HTTP_200_OK)
