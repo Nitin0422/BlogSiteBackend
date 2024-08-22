@@ -12,7 +12,7 @@ class UserModelAdmin(BaseUserAdmin):
     fieldsets = [
         ("User Credentials", {"fields": ["email", "password"]}),
         ("Personal info", {"fields": ["name", "country"]}),
-        ("Account Status", {"fields": ["is_verified", "is_active",]}),
+        ("Account Status", {"fields": [ "is_active",]}),
         ("Permissions", {"fields": ["is_admin"]}),
     ]
     # add_fieldsets is not a standard ModelAdmin attribute. UserModelAdmin
