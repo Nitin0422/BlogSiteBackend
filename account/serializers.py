@@ -3,6 +3,7 @@ from account.models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
+from .tokens import account_activation_token, password_reset_token
 from django.core.mail import send_mail
 import requests
 import os
@@ -106,7 +107,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             user = User.objects.get(email=email)
             # Encoding the userid. force_bytes is used because the encoder function does not take integer
             uid = urlsafe_base64_encode(force_bytes(user.id))
-            token = default_token_generator.make_token(user=user)
+            token = password_reset_token.make_token(user=user)
             link = 'http://127.0.0.1:8000/api/user/reset/password' + uid+'/' + token
 
             send_mail(
@@ -174,7 +175,7 @@ class SendActivationEmailSerializer(serializers.Serializer):
                     'Your account has already been activated!')
             
             uid = urlsafe_base64_encode(force_bytes(user.id))
-            token = default_token_generator.make_token(user)
+            token = account_activation_token.make_token(user)
 
             link = "http://127.0.0.1:8000/api/user/activate/account/" + uid + '/' + token + '/'
 
