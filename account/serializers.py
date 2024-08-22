@@ -167,6 +167,10 @@ class SendActivationEmailSerializer(serializers.Serializer):
         if User.objects.filter(email=email).exists():
             user = User.objects.get(email=email)
 
+            if user.is_active:
+                raise serializers.ValidationError(
+                    'Your account has already been activated!')
+            
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
 
