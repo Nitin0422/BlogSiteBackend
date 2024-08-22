@@ -47,16 +47,18 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
     def validate_email_availability(self, email, api_key):
-        request_link = "https://emailvalidation.abstractapi.com/v1/?" + \
-            "api_key=" + api_key + "&email=" + email
-        response = requests.get(request_link)
-        # Parse the JSON response
-        response_json = response.json()
+        try:
+            request_link = f"https://emailvalidation.abstractapi.com/v1/?api_key={api_key}&email={email}"
+            response = requests.get(request_link)
+            response.raise_for_status()
 
-        # Extract the value of 'deliverability'
-        deliverability = response_json.get('deliverability')
+            response_json = response.json()
+            deliverability = response_json.get('deliverability')
 
-        return True if deliverability == "DELIVERABLE" else False
+            return True if deliverability == "DELIVERABLE" else False
+        except requests.exceptions.RequestException:
+            raise serializers.ValidationError('Failed to validate email address. Please try again later.')
+
 
 
 class UserLoginSerializer(serializers.ModelSerializer):
