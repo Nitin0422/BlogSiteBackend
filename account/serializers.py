@@ -144,7 +144,7 @@ class UserPasswordResetSerializer(serializers.Serializer):
 
             user_id = smart_str(urlsafe_base64_decode(uid))
             user = User.objects.get(id=user_id)
-            if not default_token_generator.check_token(user=user, token=token):
+            if not password_reset_token.check_token(user=user, token=token):
                 raise serializers.ValidationError(
                     'Invalid token! Please re-generate token!')
 
@@ -200,7 +200,7 @@ class ActivateAccountSerializer(serializers.Serializer):
             token = self.context.get('token')
             user_id = smart_str(urlsafe_base64_decode(uid))
             user = User.objects.get(id=user_id)
-            if not default_token_generator.check_token(user=user, token=token):
+            if not account_activation_token.check_token(user=user, token=token):
                 raise serializers.ValidationError(
                     'Invalid token! Please re-generate token!')
 
