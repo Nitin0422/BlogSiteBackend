@@ -87,8 +87,27 @@ class UserRegistrationView(APIView):
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        token = get_tokens_for_user(user)
-        return Response({'message': 'Registration Successful', 'token': token}, status=status.HTTP_201_CREATED)
+        token = get_tokens_for_user(user)["access"]
+        refresh_token = get_tokens_for_user(user)["refresh"]
+        response = Response(
+            {'token': token, 'message': 'Registration Successful!'}, status=status.HTTP_201_CREATED)
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh_token),
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            max_age=3600 * 24 * 7,
+        )
+        response.set_cookie(
+            key='access_token',
+            value=str(token),
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            max_age=3600 * 24 * 7,
+        )
+        return response
 
 
 '''
@@ -112,13 +131,13 @@ class UserLoginView(APIView):
         password = serializer.data.get('password')
         if not User.objects.filter(email=email).exists():
             return Response({'message': 'This email is not registered in the server!'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         if not User.objects.get(email=email).is_active:
             return Response({'message': 'Please activate your account!'}, status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(email=email, password=password)
 
-        if user is not None:        
+        if user is not None:
             token = get_tokens_for_user(user)["access"]
             refresh_token = get_tokens_for_user(user)["refresh"]
             response = Response(
@@ -126,6 +145,14 @@ class UserLoginView(APIView):
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh_token),
+                httponly=True,
+                secure=True,
+                samesite='Lax',
+                max_age=3600 * 24 * 7,
+            )
+            response.set_cookie(
+                key='access_token',
+                value=str(token),
                 httponly=True,
                 secure=True,
                 samesite='Lax',
@@ -196,3 +223,13 @@ class ActivateAccountView(APIView):
                                                'uid': uid, 'token': token})
         serializer.is_valid(raise_exception=True)
         return Response({"message": "Your account has been activated successfully"}, status=status.HTTP_200_OK)
+
+
+class CheckTokenView(APIView):
+    renderer_classes = [UserRenderer]
+
+    def get(self, request, format=None):
+        access_token = request.COOKIES.get('refresh_token')
+        if not access_token:
+            return Response({'message': 'You are not logged in!'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'Token found!', 'token': access_token}, status=status.HTTP_200_OK)
