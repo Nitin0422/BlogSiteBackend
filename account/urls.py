@@ -11,5 +11,4 @@ urlpatterns = [
     path('send/verification/email/', SendActivationEmailView.as_view(), name='send_verification_email'),
     path('activate/account/<uid>/<token>/', ActivateAccountView.as_view(), name='activate_account'),
     path('refresh/token/', CustomTokenRefreshView.as_view(), name='refresh_token'),
-    path('get/token/', CheckTokenView.as_view(), name='access_token')
 ]

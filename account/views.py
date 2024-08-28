@@ -6,7 +6,7 @@ from .serializers import *  # Import all serializers from the serializers module
 from .renderers import UserRenderer  # Import custom renderer for handling errors in a better format
 from rest_framework_simplejwt.tokens import RefreshToken  # Import RefreshToken to manually generate JWT tokens
 from rest_framework_simplejwt.views import TokenRefreshView  # Import TokenRefreshView to handle token refresh requests
-from rest_framework.exceptions import AuthenticationFailed  # Import AuthenticationFailed exception for handling auth failures
+from rest_framework.exceptions import NotFound  # Import AuthenticationFailed exception for handling auth failures
 from rest_framework.permissions import IsAuthenticated  # Import IsAuthenticated to restrict access to authenticated users
 
 import os  # Import os module, although not used here
@@ -32,8 +32,8 @@ class CustomTokenRefreshView(TokenRefreshView):
         # Retrieve the refresh token from the cookie
         refresh_token = request.COOKIES.get('refresh_token')
 
-        if not refresh_token:
-            raise AuthenticationFailed('No refresh token found.')  # Raise an error if no token is found
+        if refresh_token is None:
+            raise NotFound('No refresh token found.')  # Raise an error if no token is found
 
         # Add the refresh token to the request data for processing
         request.data['refresh'] = refresh_token
@@ -48,11 +48,11 @@ class CustomTokenRefreshView(TokenRefreshView):
             if new_refresh_token:
                 # Set the new refresh token in the cookie with appropriate settings
                 response.set_cookie(
-                    key=settings.REFRESH_TOKEN_COOKIE_NAME,
+                    key='refresh_token',
                     value=new_refresh_token,
                     httponly=True,
                     secure=True,
-                    samesite='Lax',
+                    samesite='None',
                     max_age=3600 * 24 * 7  # Set cookie duration to match the token lifetime
                 )
 
@@ -84,18 +84,10 @@ class UserRegistrationView(APIView):
             value=str(refresh_token),
             httponly=True,
             secure=True,
-            samesite='Lax',
+            samesite='None',
             max_age=3600 * 24 * 7,
         )
-        # Set the access token in a secure, HTTP-only cookie
-        response.set_cookie(
-            key='access_token',
-            value=str(token),
-            httponly=True,
-            secure=True,
-            samesite='Lax',
-            max_age=3600 * 24 * 7,
-        )
+    
         return response
 
 '''
@@ -137,16 +129,7 @@ class UserLoginView(APIView):
                 value=str(refresh_token),
                 httponly=True,
                 secure=True,
-                samesite='Lax',
-                max_age=3600 * 24 * 7,
-            )
-            # Set the access token in a secure, HTTP-only cookie
-            response.set_cookie(
-                key='access_token',
-                value=str(token),
-                httponly=True,
-                secure=True,
-                samesite='Lax',
+                samesite="None",
                 max_age=3600 * 24 * 7,
             )
             return response
@@ -249,18 +232,4 @@ class ActivateAccountView(APIView):
         serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
         return Response({"message": "Your account has been activated successfully"}, status=status.HTTP_200_OK)  # Return success message
 
-'''
-    API view to check the validity of the JWT token stored in cookies
-    - Returns a 404 status if no token is found
-    - Returns a 200 status if a valid token is found
-'''
 
-
-class CheckTokenView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
-
-    def get(self, request, format=None):
-        access_token = request.COOKIES.get('refresh_token')  # Retrieve the refresh token from cookies
-        if not access_token:
-            return Response({'message': 'You are not logged in!'}, status=status.HTTP_404_NOT_FOUND)  # Return error if no token found
-        return Response({'message': 'Token found!', 'token': access_token}, status=status.HTTP_200_OK)  # Return success if token is found
