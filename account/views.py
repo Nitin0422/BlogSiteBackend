@@ -26,7 +26,6 @@ def get_tokens_for_user(user):
 
 # Custom view to refresh JWT tokens using a token stored in cookies
 
-
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         # Retrieve the refresh token from the cookie
@@ -38,25 +37,30 @@ class CustomTokenRefreshView(TokenRefreshView):
         # Add the refresh token to the request data for processing
         request.data['refresh'] = refresh_token
 
-        # Call the parent class method to handle the token refresh process
-        response = super().post(request, *args, **kwargs)
+        try:
+            # Call the parent class method to handle the token refresh process
+            response = super().post(request, *args, **kwargs)
 
-        # If the token refresh is successful, update the refresh token in the cookie
-        if response.status_code == 200:
-            new_refresh_token = response.data.get('refresh')
+            # If the token refresh is successful, update the refresh token in the cookie
+            if response.status_code == 200:
+                new_refresh_token = response.data.get('refresh')
 
-            if new_refresh_token:
-                # Set the new refresh token in the cookie with appropriate settings
-                response.set_cookie(
-                    key='refresh_token',
-                    value=new_refresh_token,
-                    httponly=True,
-                    secure=True,
-                    samesite='None',
-                    max_age=3600 * 24 * 7  # Set cookie duration to match the token lifetime
-                )
+                if new_refresh_token:
+                    # Set the new refresh token in the cookie with appropriate settings
+                    response.set_cookie(
+                        key='refresh_token',
+                        value=new_refresh_token,
+                        httponly=True,
+                        secure=True,
+                        samesite='None',
+                        max_age=3600 * 24 * 7  # Set cookie duration to match the token lifetime
+                    )
 
-        return response
+            return response
+        except Exception as e:
+            # Raise a 400 Bad Request error with a custom error message
+            raise NotFound({'error': 'An error occurred during the token refresh process.', 'details': str(e)})
+
 
 '''
     API view to handle user registration
@@ -231,5 +235,32 @@ class ActivateAccountView(APIView):
                                                'uid': uid, 'token': token})  # Serialize the incoming data with the UID and token context
         serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
         return Response({"message": "Your account has been activated successfully"}, status=status.HTTP_200_OK)  # Return success message
+
+class LogoutView(APIView):
+    renderer_classes = [UserRenderer]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            raise ValueError('User is not logged in!')
+        
+        token = RefreshToken(refresh_token)
+        try:
+            token.blacklist()
+
+            # Create the response
+            response = Response({'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
+            
+            # Delete the refresh_token cookie
+            response.delete_cookie(
+                key='refresh_token',
+                path='/',
+                domain=None  # Use your domain here if you specified it when setting the cookie
+            )
+            
+            return response
+        except:
+            return Response({'message': 'An unknown error has occurred!'}, status=status.HTTP_400_BAD_REQUEST)
 
 

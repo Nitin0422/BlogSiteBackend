@@ -112,7 +112,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
 
             send_mail(
                 'Reset Password | VERTEX',
-                'Follow the given link to reset your password' + link,
+                'Follow the given link to reset your password ' + link,
                 "vertex.blog.site@gmail.com",
                 [user.email]
             )
