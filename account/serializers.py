@@ -108,7 +108,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             # Encoding the userid. force_bytes is used because the encoder function does not take integer
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = password_reset_token.make_token(user=user)
-            link = 'http://127.0.0.1:8000/api/user/reset/password' + uid+'/' + token
+            link = 'http://localhost:5173/reset/password/' + uid+'/' + token
 
             send_mail(
                 'Reset Password | VERTEX',
