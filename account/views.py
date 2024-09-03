@@ -1,13 +1,21 @@
-from django.contrib.auth import authenticate  # Import the authenticate function to verify user credentials
-from rest_framework.response import Response  # Import Response to send HTTP responses
+# Import the authenticate function to verify user credentials
+from django.contrib.auth import authenticate
+# Import Response to send HTTP responses
+from rest_framework.response import Response
 from rest_framework import status  # Import status to use HTTP status codes
-from rest_framework.views import APIView  # Import APIView as the base view class for handling HTTP requests
+# Import APIView as the base view class for handling HTTP requests
+from rest_framework.views import APIView
 from .serializers import *  # Import all serializers from the serializers module
-from .renderers import UserRenderer  # Import custom renderer for handling errors in a better format
-from rest_framework_simplejwt.tokens import RefreshToken  # Import RefreshToken to manually generate JWT tokens
-from rest_framework_simplejwt.views import TokenRefreshView  # Import TokenRefreshView to handle token refresh requests
-from rest_framework.exceptions import NotFound  # Import AuthenticationFailed exception for handling auth failures
-from rest_framework.permissions import IsAuthenticated  # Import IsAuthenticated to restrict access to authenticated users
+# Import custom renderer for handling errors in a better format
+from .renderers import UserRenderer
+# Import RefreshToken to manually generate JWT tokens
+from rest_framework_simplejwt.tokens import RefreshToken
+# Import TokenRefreshView to handle token refresh requests
+from rest_framework_simplejwt.views import TokenRefreshView
+# Import AuthenticationFailed exception for handling auth failures
+from rest_framework.exceptions import NotFound
+# Import IsAuthenticated to restrict access to authenticated users
+from rest_framework.permissions import IsAuthenticated
 
 import os  # Import os module, although not used here
 
@@ -15,16 +23,20 @@ import os  # Import os module, although not used here
 
 
 def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)  # Create a refresh token for the given user
+    # Create a refresh token for the given user
+    refresh = RefreshToken.for_user(user)
 
-    refresh["user"] = UserSerializer(user).data  # Add serialized user data to the refresh token
+    # Add serialized user data to the refresh token
+    refresh["user"] = UserSerializer(user).data
 
     return {
         'refresh': str(refresh),  # Return the refresh token as a string
-        'access': str(refresh.access_token),  # Return the access token derived from the refresh token
+        # Return the access token derived from the refresh token
+        'access': str(refresh.access_token),
     }
 
 # Custom view to refresh JWT tokens using a token stored in cookies
+
 
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
@@ -32,7 +44,8 @@ class CustomTokenRefreshView(TokenRefreshView):
         refresh_token = request.COOKIES.get('refresh_token')
 
         if refresh_token is None:
-            raise NotFound('No refresh token found.')  # Raise an error if no token is found
+            # Raise an error if no token is found
+            raise NotFound('No refresh token found.')
 
         # Add the refresh token to the request data for processing
         request.data['refresh'] = refresh_token
@@ -59,7 +72,8 @@ class CustomTokenRefreshView(TokenRefreshView):
             return response
         except Exception as e:
             # Raise a 400 Bad Request error with a custom error message
-            raise NotFound({'error': 'An error occurred during the token refresh process.', 'details': str(e)})
+            raise NotFound(
+                {'error': 'An error occurred during the token refresh process.', 'details': str(e)})
 
 
 '''
@@ -72,27 +86,38 @@ class CustomTokenRefreshView(TokenRefreshView):
 
 
 class UserRegistrationView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, format=None):
-        serializer = UserRegisterSerializer(data=request.data)  # Serialize the incoming data
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
+        serializer = UserRegisterSerializer(
+            data=request.data)  # Serialize the incoming data
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()  # Save the user if the data is valid
-        token = get_tokens_for_user(user)["access"]  # Generate an access token for the user
-        refresh_token = get_tokens_for_user(user)["refresh"]  # Generate a refresh token for the user
-        response = Response(
-            {'token': token, 'message': 'Registration Successful!'}, status=status.HTTP_201_CREATED)  # Create a response with the tokens
-        # Set the refresh token in a secure, HTTP-only cookie
-        response.set_cookie(
-            key='refresh_token',
-            value=str(refresh_token),
-            httponly=True,
-            secure=True,
-            samesite='None',
-            max_age=3600 * 24 * 7,
-        )
-    
-        return response
+
+        activation_data = {'email': user.email}
+        activation_serializer = SendActivationEmailSerializer(data=activation_data)
+        activation_serializer.is_valid(raise_exception=True)
+
+        # token = get_tokens_for_user(user)["access"]  # Generate an access token for the user
+        # refresh_token = get_tokens_for_user(user)["refresh"]  # Generate a refresh token for the user
+        # response = Response(
+        #     {'token': token, 'message': 'Registration Successful!'}, status=status.HTTP_201_CREATED)  # Create a response with the tokens
+        # # Set the refresh token in a secure, HTTP-only cookie
+        # response.set_cookie(
+        #     key='refresh_token',
+        #     value=str(refresh_token),
+        #     httponly=True,
+        #     secure=True,
+        #     samesite='None',
+        #     max_age=3600 * 24 * 7,
+        # )
+
+        # return response
+
+        return Response({"message": "Registration Succesful! Please check your email to activate your account"}, status=status.HTTP_201_CREATED)
+
 
 '''
     API view to handle user login
@@ -104,13 +129,18 @@ class UserRegistrationView(APIView):
 
 
 class UserLoginView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, format=None):
-        serializer = UserLoginSerializer(data=request.data)  # Serialize the incoming data
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        email = serializer.data.get('email')  # Extract the email from the validated data
-        password = serializer.data.get('password')  # Extract the password from the validated data
+        serializer = UserLoginSerializer(
+            data=request.data)  # Serialize the incoming data
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Extract the email from the validated data
+        email = serializer.data.get('email')
+        # Extract the password from the validated data
+        password = serializer.data.get('password')
 
         # Check if the email is registered in the system
         if not User.objects.filter(email=email).exists():
@@ -120,11 +150,14 @@ class UserLoginView(APIView):
         if not User.objects.get(email=email).is_active:
             return Response({'message': 'Please activate your account!'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(email=email, password=password)  # Authenticate the user with the provided credentials
+        # Authenticate the user with the provided credentials
+        user = authenticate(email=email, password=password)
 
         if user is not None:
-            token = get_tokens_for_user(user)["access"]  # Generate an access token for the user
-            refresh_token = get_tokens_for_user(user)["refresh"]  # Generate a refresh token for the user
+            # Generate an access token for the user
+            token = get_tokens_for_user(user)["access"]
+            # Generate a refresh token for the user
+            refresh_token = get_tokens_for_user(user)["refresh"]
             response = Response(
                 {'token': token, 'message': 'Login Successful!'}, status=status.HTTP_200_OK)  # Create a response with the tokens
             # Set the refresh token in a secure, HTTP-only cookie
@@ -141,6 +174,7 @@ class UserLoginView(APIView):
         # Return a 404 error if the credentials do not match any user
         return Response({'message': 'User credentials do not match'}, status=status.HTTP_404_NOT_FOUND)
 
+
 '''
     API view to handle viewing the user's profile
     - Restricted to authenticated users only
@@ -148,12 +182,17 @@ class UserLoginView(APIView):
 
 
 class UserProfileView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
-    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
+    # Ensure only authenticated users can access this view
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, format=None):
-        serializer = UserSerializer(request.user)  # Serialize the currently authenticated user's data
-        return Response(serializer.data, status=status.HTTP_200_OK)  # Return the serialized user data
+        # Serialize the currently authenticated user's data
+        serializer = UserSerializer(request.user)
+        # Return the serialized user data
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 '''
     API view to handle user password change
@@ -164,14 +203,19 @@ class UserProfileView(APIView):
 
 
 class UserChangePassword(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
-    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
+    # Ensure only authenticated users can access this view
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
         serializer = UserChangePasswordSerializer(
             data=request.data, context={'user': request.user})  # Serialize the incoming data with the current user context
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        return Response({'message': 'Password changed successfully!'}, status=status.HTTP_200_OK)  # Return success message
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Return success message
+        return Response({'message': 'Password changed successfully!'}, status=status.HTTP_200_OK)
+
 
 '''
     API view to send a password reset email
@@ -181,12 +225,17 @@ class UserChangePassword(APIView):
 
 
 class SendPasswordResetEmailView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, format=None):
-        serializer = SendPasswordResetEmailSerializer(data=request.data)  # Serialize the incoming data
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        return Response({'message': 'Password reset link has been sent to your email'}, status=status.HTTP_200_OK)  # Return success message
+        serializer = SendPasswordResetEmailSerializer(
+            data=request.data)  # Serialize the incoming data
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Return success message
+        return Response({'message': 'Password reset link has been sent to your email'}, status=status.HTTP_200_OK)
+
 
 '''
     API view to reset the user's password using a token sent via email
@@ -197,13 +246,17 @@ class SendPasswordResetEmailView(APIView):
 
 
 class UserPasswordResetView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, uid, token, format=None):
         serializer = UserPasswordResetSerializer(
             data=request.data, context={'uid': uid, 'token': token})  # Serialize the incoming data with the UID and token context
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        return Response({'message': 'Password Reset Successfully'}, status=status.HTTP_200_OK)  # Return success message
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Return success message
+        return Response({'message': 'Password Reset Successfully'}, status=status.HTTP_200_OK)
+
 
 '''
     API view to send an account activation email
@@ -213,12 +266,17 @@ class UserPasswordResetView(APIView):
 
 
 class SendActivationEmailView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, format=None):
-        serializer = SendActivationEmailSerializer(data=request.data)  # Serialize the incoming data
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        return Response({'message': 'Activation Link has been sent to your email!'}, status=status.HTTP_200_OK)  # Return success message
+        serializer = SendActivationEmailSerializer(
+            data=request.data)  # Serialize the incoming data
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Return success message
+        return Response({'message': 'Activation Link has been sent to your email!'}, status=status.HTTP_200_OK)
+
 
 '''
     API view to activate a user's account using a token sent via email
@@ -228,13 +286,17 @@ class SendActivationEmailView(APIView):
 
 
 class ActivateAccountView(APIView):
-    renderer_classes = [UserRenderer]  # Use custom renderer for error formatting
+    # Use custom renderer for error formatting
+    renderer_classes = [UserRenderer]
 
     def post(self, request, uid, token):
         serializer = ActivateAccountSerializer(data=request.data, context={
                                                'uid': uid, 'token': token})  # Serialize the incoming data with the UID and token context
-        serializer.is_valid(raise_exception=True)  # Validate the data and raise an error if invalid
-        return Response({"message": "Your account has been activated successfully"}, status=status.HTTP_200_OK)  # Return success message
+        # Validate the data and raise an error if invalid
+        serializer.is_valid(raise_exception=True)
+        # Return success message
+        return Response({"message": "Your account has been activated successfully"}, status=status.HTTP_200_OK)
+
 
 class LogoutView(APIView):
     renderer_classes = [UserRenderer]
@@ -244,23 +306,22 @@ class LogoutView(APIView):
 
         if not refresh_token:
             raise ValueError('User is not logged in!')
-        
+
         token = RefreshToken(refresh_token)
         try:
             token.blacklist()
 
             # Create the response
-            response = Response({'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
-            
+            response = Response(
+                {'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
+
             # Delete the refresh_token cookie
             response.delete_cookie(
                 key='refresh_token',
                 path='/',
                 domain=None  # Use your domain here if you specified it when setting the cookie
             )
-            
+
             return response
         except:
             return Response({'message': 'An unknown error has occurred!'}, status=status.HTTP_400_BAD_REQUEST)
-
-
