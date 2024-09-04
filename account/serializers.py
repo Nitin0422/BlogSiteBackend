@@ -177,7 +177,7 @@ class SendActivationEmailSerializer(serializers.Serializer):
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = account_activation_token.make_token(user)
 
-            link = "http://127.0.0.1:8000/api/user/activate/account/" + uid + '/' + token + '/'
+            link = "http://localhost:5173/activate/account/" + uid + '/' + token
 
             send_mail(
                 subject='Vertex | Email Verification',
