@@ -97,7 +97,8 @@ class UserRegistrationView(APIView):
         user = serializer.save()  # Save the user if the data is valid
 
         activation_data = {'email': user.email}
-        activation_serializer = SendActivationEmailSerializer(data=activation_data)
+        activation_serializer = SendActivationEmailSerializer(
+            data=activation_data)
         activation_serializer.is_valid(raise_exception=True)
 
         # token = get_tokens_for_user(user)["access"]  # Generate an access token for the user
@@ -129,49 +130,55 @@ class UserRegistrationView(APIView):
 
 
 class UserLoginView(APIView):
-    # Use custom renderer for error formatting
     renderer_classes = [UserRenderer]
 
     def post(self, request, format=None):
-        serializer = UserLoginSerializer(
-            data=request.data)  # Serialize the incoming data
-        # Validate the data and raise an error if invalid
+        serializer = UserLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Extract the email from the validated data
         email = serializer.data.get('email')
-        # Extract the password from the validated data
         password = serializer.data.get('password')
 
-        # Check if the email is registered in the system
+        # Check email existence and account activation
         if not User.objects.filter(email=email).exists():
-            return Response({'message': 'This email is not registered in the server!'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'This email is not registered!'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Check if the user account is active
         if not User.objects.get(email=email).is_active:
             return Response({'message': 'Please activate your account!'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Authenticate the user with the provided credentials
+        # Authenticate the user
         user = authenticate(email=email, password=password)
 
         if user is not None:
-            # Generate an access token for the user
+            # Generate tokens
             token = get_tokens_for_user(user)["access"]
-            # Generate a refresh token for the user
             refresh_token = get_tokens_for_user(user)["refresh"]
+
             response = Response(
-                {'token': token, 'message': 'Login Successful!'}, status=status.HTTP_200_OK)  # Create a response with the tokens
-            # Set the refresh token in a secure, HTTP-only cookie
+                {'token': token, 'message': 'Login Successful!'}, status=status.HTTP_200_OK)
+
+            # Set secure cookies
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh_token),
+                domain="127.0.0.1",
+                httponly=True,  # Ensures it's not accessible via JavaScript
+                secure=True,  # Only sent over HTTPS
+                # For cross-site requests, especially for frontend-backend on different domains
+                samesite="None",
+                max_age=3600 * 24 * 7,  # 1 week
+            )
+            response.set_cookie(
+                key='access_token',
+                value=str(token),
+                domain="127.0.0.1",
                 httponly=True,
                 secure=True,
                 samesite="None",
                 max_age=3600 * 24 * 7,
             )
+
             return response
 
-        # Return a 404 error if the credentials do not match any user
         return Response({'message': 'User credentials do not match'}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -302,26 +309,47 @@ class LogoutView(APIView):
     renderer_classes = [UserRenderer]
 
     def post(self, request):
+        access_token = request.COOKIES.get('access_token')
         refresh_token = request.COOKIES.get('refresh_token')
 
-        if not refresh_token:
+        if not refresh_token or not access_token:
             raise ValueError('User is not logged in!')
 
-        token = RefreshToken(refresh_token)
-        try:
-            token.blacklist()
+        r_token = RefreshToken(refresh_token)
 
-            # Create the response
+        try:
+            r_token.blacklist()
+
             response = Response(
                 {'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
 
-            # Delete the refresh_token cookie
+            # Delete the cookies with the same parameters used during login
             response.delete_cookie(
                 key='refresh_token',
                 path='/',
-                domain=None  # Use your domain here if you specified it when setting the cookie
+                domain="127.0.0.1",
+                samesite="None",  # Ensure same SameSite policy
+            )
+            response.delete_cookie(
+                key='access_token',
+                path='/',
+                domain="127.0.0.1",
+                samesite="None",
             )
 
             return response
-        except:
+        except Exception as e:
+            print("Error: ", e)
             return Response({'message': 'An unknown error has occurred!'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CheckAccessToken(APIView):
+    renderer_classes = [UserRenderer]
+
+    def get(self, request):
+        access_token = request.COOKIES.get('access_token')
+
+        if not access_token:
+            raise ValueError('User is not logged in!')
+
+        return Response({"message": "Token found", "token": access_token}, status=status.HTTP_200_OK)
